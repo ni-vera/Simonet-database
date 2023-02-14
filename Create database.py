@@ -1,5 +1,7 @@
 import re
 import numpy as np 
+import sqlite3
+import pandas as pd
 
 glosario_file = open("Simonet.txt", encoding = "utf8")
 glosario = glosario_file.read()
@@ -31,7 +33,7 @@ print(re.findall(a,glosario))
 """
 
 
-co = re.compile("\s|\. |\.")
+co = re.compile("\s|\.|\,")
 
 #for i in range(len(z)):
 #    if i < len(z) - 1:
@@ -41,18 +43,18 @@ co = re.compile("\s|\. |\.")
 for i in range(len(z)):
     if i < len(z) - 1:
         print(i)
-        term = re.sub("\s","",z[i])
-        nexterm = re.sub("\s","\\\s+",z[i + 1])
-        cadena = f"^{term}.*^{nexterm}"
+        term = z[i]
+        nexterm = z[i + 1]
+        cadena = f"{term}.*\n{nexterm}"
         a = re.compile(cadena,flags = re.DOTALL)
         b = re.search(a,glosario)
-        print(b)
-        c = re.sub(f"^{term}(.*)^{nexterm}","\1",b[0])
+        c = re.sub(f"{term}","",b[0])
+        c = re.sub(f"{nexterm}","",c)
         diccionario[z[i]] = c
-        #print(re.findall(a,glosario))
+        
 
-for clave in diccionario:
-    clave = re.sub(co,"",clave)
+#for clave in diccionario:
+#    clave = re.sub(co,"",clave)
 
 pag_counter = 1 
 
@@ -61,10 +63,32 @@ palabras_partidas = []
 
 for clave in diccionario:
     paginas.append(pag_counter)
-    if bool(re.search("\x0c",clave,flags=re.MULTILINE)) or bool(re.search("\x0c",diccionario[clave],flags=re.MULTILINE)):
+    if bool(re.search("\x0c",clave,flags=re.MULTILINE)):
         pag_counter += 1
         palabras_partidas.append(clave)
-        
+    elif bool(re.search("\x0c",diccionario[clave],flags=re.MULTILINE)):
+        n_matches = len(re.findall("\x0c",diccionario[clave],flags=re.MULTILINE))
+        pag_counter += n_matches
+        palabras_partidas.append(clave)
+
+diccionario2 = {}
+
+for clave in diccionario:
+    diccionario2[re.sub(co,"",clave)] = diccionario[clave]
+
+entradas_frame = {
+    "Entrada": list(diccionario2.keys()),
+    "Página": paginas
+}
+
+entradas_frame = pd.DataFrame(entradas_frame)
+
+con = sqlite3.connect("simonet_prueba.db")
+cur = con.cursor()
+
+entradas_frame.to_sql("entradas",con,if_exists="replace")
+
+
 
 
 
